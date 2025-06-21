@@ -1,4 +1,4 @@
-package com.fizz.fizz_server.csv.service;
+package com.fizz.fizz_server.crawler.service;
 
 
 import com.fizz.fizz_server.menu.dto.request.MenuRequestDto;
@@ -12,6 +12,7 @@ import com.opencsv.CSVReader;
 import com.opencsv.exceptions.CsvValidationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,9 +31,14 @@ public class CsvService {
     private final MenuService menuService;
     private final ReviewService reviewService;
 
-    private static final String STORE_CSV = "./csv/store.csv";
-    private static final String MENU_CSV = "./csv/menu.csv";
-    private static final String REVIEW_CSV = "./csv/review.csv";
+    @Value("${csv.classpath.store}")
+    private final String STORE_CSV_PATH;
+
+    @Value("${csv.classpath.menu}")
+    private final String MENU_CSV_PATH;
+
+    @Value("${csv.classpath.review}")
+    private final String REVIEW_CSV_PATH;
 
 
     /**
@@ -42,9 +48,10 @@ public class CsvService {
      */
     public void updateDatabaseFromCsv(){
         try {
-            List<StoreRequestDto> stores = parseStoreCsv(STORE_CSV);
-            Map<String, List<MenuRequestDto>> menuMap = parseMenuCsv(MENU_CSV);
-            Map<String, List<ReviewRequestDto>> reviewMap = parseReviewCsv(REVIEW_CSV);
+            List<StoreRequestDto> stores = parseStoreCsv(STORE_CSV_PATH);
+            Map<String, List<MenuRequestDto>> menuMap = parseMenuCsv(MENU_CSV_PATH);
+            Map<String, List<ReviewRequestDto>> reviewMap = parseReviewCsv(REVIEW_CSV_PATH);
+
 
             for (StoreRequestDto storeDto : stores) {
                 Store store = storeService.upsertStore(storeDto);
@@ -53,8 +60,8 @@ public class CsvService {
 
 
                 // db 에는 storeid 를 fk 로 하고 있어서 첫  인자로는 storeid 를 사용하지만, csv 파일에는 externalstoreid 로 저장되어있기떄문에[ getOrDefulat 로 조회
-                menuService.upsertMenus(storeId, menuMap.getOrDefault(externalStoreId, List.of()));
-                reviewService.upsertReviews(storeId, reviewMap.getOrDefault(externalStoreId, List.of()));
+                menuService.upsertMenus(storeId, menuMap.getOrDefault(String.valueOf(externalStoreId), List.of()));
+                reviewService.upsertReviews(storeId, reviewMap.getOrDefault(String.valueOf(externalStoreId), List.of()));
             }
 
         } catch (Exception e) {
@@ -79,6 +86,7 @@ public class CsvService {
                         .reviewCount(Long.parseLong(line[4]))
                         .build();
                 stores.add(dto);
+
             }
         }
         return stores;
@@ -87,6 +95,7 @@ public class CsvService {
     public Map<String, List<MenuRequestDto>> parseMenuCsv(String classpathLocation) throws IOException , CsvValidationException {
         Map<String, List<MenuRequestDto>> menuMap = new HashMap<>();
         ClassPathResource resource = new ClassPathResource(classpathLocation);
+
         try (CSVReader reader = new CSVReader(new FileReader(resource.getFile()))) {
             String[] line;
             reader.readNext(); // skip header
@@ -98,14 +107,17 @@ public class CsvService {
                         .description(line[3])
                         .build();
                 menuMap.computeIfAbsent(externalId, k -> new ArrayList<>()).add(dto);
+                log.info("Menu added: externalId={}, name={}, price={}, description={}", externalId, line[1], line[2], line[3]);
             }
         }
+
         return menuMap;
     }
 
     public Map<String, List<ReviewRequestDto>> parseReviewCsv(String classpathLocation) throws IOException  , CsvValidationException  {
         Map<String, List<ReviewRequestDto>> reviewMap = new HashMap<>();
         ClassPathResource resource = new ClassPathResource(classpathLocation);
+
         try (CSVReader reader = new CSVReader(new FileReader(resource.getFile()))) {
             String[] line;
             reader.readNext(); // skip header
@@ -118,6 +130,7 @@ public class CsvService {
                         .comment(line[4])
                         .build();
                 reviewMap.computeIfAbsent(externalId, k -> new ArrayList<>()).add(dto);
+
             }
         }
         return reviewMap;

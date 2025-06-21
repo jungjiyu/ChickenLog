@@ -9,6 +9,7 @@ import com.fizz.fizz_server.menu.repository.MenuRepository;
 import com.fizz.fizz_server.store.entity.Store;
 import com.fizz.fizz_server.store.repository.StoreRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,6 +19,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Transactional
+@Slf4j
 public class MenuService {
 
     private final MenuRepository menuRepository;
@@ -63,13 +65,35 @@ public class MenuService {
 
 
     public void upsertMenus(Long storeid, List<MenuRequestDto> menuDtos) {
-        Store store = storeRepository.findById(storeid).orElseThrow(()
-                -> new BusinessException(ExceptionType.STORE_NOT_FOUND));
+        log.info("upsertMenus called for storeId: {}", storeid);
 
+        // Store 존재 여부 확인
+        Store store = storeRepository.findById(storeid).orElseThrow(() ->
+                new BusinessException(ExceptionType.STORE_NOT_FOUND));
+        log.info("Store found: {}", store.getName());
+
+        // 기존 메뉴 삭제
+        log.info("Deleting existing menus for storeId: {}", storeid);
         menuRepository.deleteAllByStoreId(storeid);
 
+        // 새로운 메뉴 저장
+
+        log.info("menudtos : {}",menuDtos);
+        if (menuDtos.isEmpty()) {
+            log.warn("No menu items found for storeId: {}", storeid);
+        }
+
         menuDtos.stream()
-                .map(dto -> dto.toEntity(store))
-                .forEach(menuRepository::save);
+                .map(dto -> {
+                    log.info("Converting MenuRequestDto to Menu entity for menu: {}", dto.getName());
+                    return dto.toEntity(store);
+                })
+                .forEach(menu -> {
+                    log.info("Saving menu: {}", menu.getName());
+                    menuRepository.save(menu);
+                });
+
+        log.info("Upserted {} menu items for storeId: {}", menuDtos.size(), storeid);
     }
+
 }
