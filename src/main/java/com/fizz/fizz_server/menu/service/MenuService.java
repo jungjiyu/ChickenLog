@@ -60,4 +60,16 @@ public class MenuService {
                 .orElseThrow(() -> new BusinessException(ExceptionType.MENU_NOT_FOUND));
         return MenuResponseDto.fromEntity(menu);
     }
+
+
+    public void upsertMenus(Long storeid, List<MenuRequestDto> menuDtos) {
+        Store store = storeRepository.findById(storeid).orElseThrow(()
+                -> new BusinessException(ExceptionType.STORE_NOT_FOUND));
+
+        menuRepository.deleteAllByStoreId(storeid);
+
+        menuDtos.stream()
+                .map(dto -> dto.toEntity(store))
+                .forEach(menuRepository::save);
+    }
 }

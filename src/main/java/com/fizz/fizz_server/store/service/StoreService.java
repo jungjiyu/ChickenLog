@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 
@@ -94,6 +95,30 @@ public class StoreService {
 
         return response;
     }
+
+
+    /**
+     * 크롤링 데이터를 db 에 반영하는 메서드
+     * @param dto
+     * @return
+     */
+    public Store upsertStore(StoreRequestDto dto) {
+        Optional<Store> existing = storeRepository.findByExternalStoreId(dto.getExternalStoreId());
+
+        if (existing.isPresent()) {
+            Store store = existing.get();
+            store.update(dto);
+            log.info("Updated store: {}", store.getName());
+            return store;
+        } else {
+            Store newStore = storeRepository.save(dto.toEntity());
+            log.info("Inserted new store: {}", newStore.getName());
+            return newStore;
+        }
+    }
+
+
+
 
 
 

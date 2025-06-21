@@ -2,6 +2,7 @@ package com.fizz.fizz_server.review.service;
 
 import com.fizz.fizz_server.global.base.response.exception.BusinessException;
 import com.fizz.fizz_server.global.base.response.exception.ExceptionType;
+import com.fizz.fizz_server.menu.dto.request.MenuRequestDto;
 import com.fizz.fizz_server.review.dto.request.ReviewRequestDto;
 import com.fizz.fizz_server.review.dto.response.ReviewResponseDto;
 import com.fizz.fizz_server.review.entity.Review;
@@ -60,5 +61,16 @@ public class ReviewService {
         Review review = reviewRepository.findById(reviewId)
                 .orElseThrow(() -> new BusinessException(ExceptionType.REVIEW_NOT_FOUND));
         return ReviewResponseDto.fromEntity(review);
+    }
+
+    public void upsertReviews(Long storeid, List<ReviewRequestDto> reviewDtos) {
+        Store store = storeRepository.findById(storeid).orElseThrow(()
+                -> new BusinessException(ExceptionType.STORE_NOT_FOUND));
+
+        reviewRepository.deleteAllByStoreId(storeid);
+
+        reviewDtos.stream()
+                .map(dto -> dto.toEntity(store))
+                .forEach(reviewRepository::save);
     }
 }
